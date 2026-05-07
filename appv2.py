@@ -1,6 +1,7 @@
 import tkinter as tk
 import time
 import csv
+import serial
 import random
 import os
 from datetime import datetime
@@ -14,6 +15,8 @@ STARTING_SEQ_LEN      = 1         # initial sequence length
 MAX_SEQ_LEN           = 8         # cap on sequence length
 CORRECT_TO_LEVEL_UP   = 3         # correct sequences in a row to increase length
 DATA_FILE             = "./data/experiment_results.csv"
+SERIAL_PORT           = "COM3"     # Change as needed for vibrotactile device
+SERIAL_BAUD          = 115200
 
 # Colours
 BG        = "#0d0d0f"
@@ -166,6 +169,11 @@ class ExperimentApp:
         self.seq_len, self.streak = STARTING_SEQ_LEN, 0
         self.correct_presses, self.incorrect_presses = 0, 0
         self.time_left, self.game_active = EXPERIMENT_DURATION, True
+        if self.vibro_enabled:
+            try:
+                self._ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=0.1)
+            except Exception as e:
+                print(f"Could not open serial port: {e}")
         self.build_game_screen()
         self._new_sequence()
 
@@ -215,7 +223,12 @@ class ExperimentApp:
             self._update_pips()
 
     def send_signal(self, letter):
-        print(f"SIGNAL:{letter}", flush=True)
+        try:
+            if not hasattr(self, '_ser') or not self._ser.is_open:
+                self._ser = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=0.1)
+            self._ser.write(f"SIGNAL:{letter}\n".encode())
+        except Exception as e:
+            print(f"Serial error: {e}")
 
     def _tick(self):
         if not self.game_active: return
